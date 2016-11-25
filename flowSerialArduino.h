@@ -42,6 +42,23 @@ private:
 	void recieveData();
 	void transmissionError(boolean resend);
 	void sendDebugInfo(String text, int textLenght);
+
+	enum FsmStates{
+		idle,
+		startRecieved,
+		instructionRecieved,
+		argumentsRecieved,
+		LSBchecksumRecieved,
+		MSBchecksumRecieved,
+		executeInstruction
+	};
+
+	//instruction codes
+	enum instruction{
+		readRequest = 0x01,
+		writeInstruction,
+		dataReturn
+	};
 };
 
 #endif

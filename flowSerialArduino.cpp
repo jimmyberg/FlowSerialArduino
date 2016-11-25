@@ -2,24 +2,6 @@
 #include "Arduino.h"
 #include "flowSerialArduino.h"
 
-//FSM states
-#define idle                0x00
-#define startRecieved       0x01
-#define instructionRecieved 0x02
-#define argumentsRecieved   0x03
-#define LSBchecksumRecieved 0x04
-#define MSBchecksumRecieved 0x05
-#define executeInstruction  0x06
-
-//instruction codes
-#define IDrequest           0x00
-#define readRequest         0x01
-#define writeInstruction        0x02
-#define dataReturn          0x03
-#define debugInfo           0x04
-#define debugStateCommand   0x05
-#define transmissionErrorInstruction   0x06
-
 FlowSerial::FlowSerial(int baudrate, int regSize, char IDinit){
 	Serial.begin(baudrate);
 	ID = IDinit;
@@ -53,17 +35,7 @@ char FlowSerial::update(){
 				}
 				break;
 			case instructionRecieved:
-				if(instruction != IDrequest){
-					checksumInbox += byteIn;
-				}
 				switch(instruction){
-					case IDrequest:
-						LSBchecksumIn = byteIn;
-						process = LSBchecksumRecieved;
-						if(debugEnable == true){
-							Serial.println("LSB recieved");
-						}
-						break;
 					case readRequest:
 						argumentBuffer[argumentBufferAt] = byteIn;
 						argumentBufferAt++;
@@ -109,21 +81,10 @@ char FlowSerial::update(){
 				}
 				else{
 					process = idle;
-					instruction = transmissionErrorInstruction;
-					if(debugEnable == true){
-						Serial.print("checksum faulty. ");
-						Serial.print((MSBchecksumIn << 8) | LSBchecksumIn);
-						Serial.print("recieved. needed: ");
-						Serial.println(checksumInbox);
-					}
 					return -1;
 				}
 			case executeInstruction:
 			switch(instruction){
-				case IDrequest:
-					sendID();
-					process = idle;
-					break;
 				case readRequest:
 					readCommand();
 					process = idle;
@@ -132,33 +93,19 @@ char FlowSerial::update(){
 					writeCommand();
 					process = idle;
 					break;
-				/*
-				case IDreturn:
-					process = idle;
-					break;
-				case debugInfo:
-					process = idle;
-					break;
-				case debugStateCommand:
-					process = idle;
-					break;
-				case transmissionErrorInstruction:
-					process = idle;
-					break;
-					*/
 				default:
 					process = idle;
-  		}
-  		break;
-  		default:
-  		process = idle;
-  	}
-  }
-  if(millis() - timeoutTime > 150){
-  	process = idle;
-  	return -1;
-  }
-  return 0;
+			}
+			break;
+			default:
+			process = idle;
+		}
+	}
+	if(millis() - timeoutTime > 150){
+		process = idle;
+		return -1;
+	}
+	return 0;
 }
 
 void FlowSerial::sendID(){
