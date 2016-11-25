@@ -36,13 +36,9 @@ private:
 	int MSBchecksumIn;
 	int checksumInbox;
 	int instruction;
-	void sendID();
 	void readCommand();
 	void writeCommand();
 	void recieveData();
-	void transmissionError(boolean resend);
-	void sendDebugInfo(String text, int textLenght);
-
 	enum FsmStates{
 		idle,
 		startRecieved,
@@ -55,7 +51,7 @@ private:
 
 	//instruction codes
 	enum instruction{
-		readRequest = 0x01,
+		readRequest,
 		writeInstruction,
 		dataReturn
 	};

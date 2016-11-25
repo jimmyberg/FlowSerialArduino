@@ -20,9 +20,6 @@ char FlowSerial::update(){
 					checksumInbox = 0xAA;
 					timeoutTime = millis();
 					process = startRecieved;
-					if(debugEnable == true){
-						sendDebugInfo("0xAA recieved.", 14);
-					}
 				}
 				break;
 			case startRecieved:
@@ -108,21 +105,11 @@ char FlowSerial::update(){
 	return 0;
 }
 
-void FlowSerial::sendID(){
-	Serial.write(0xAA);
-	Serial.write(0x03);
-	Serial.write(0x01);
-	Serial.write(ID);
-	int serialSum = 0xAE + ID;
-	Serial.write(serialSum >> 8);
-	Serial.write(serialSum & 0x00FF);
-}
-
 void FlowSerial::readCommand(){
 	Serial.write(0xAA);
-	Serial.write(0x03);
+	Serial.write(readRequest);
 	Serial.write(argumentBuffer[1]);
-	int checksumOut = 0xAD + argumentBuffer[1];
+	int checksumOut = 0xAA + readRequest + argumentBuffer[1];
 	for(int i = 0;i < argumentBuffer[1]; i++){
 		Serial.write(serialReg[i + argumentBuffer[0]]);
 		checksumOut += serialReg[i + argumentBuffer[0]];
@@ -155,55 +142,20 @@ int FlowSerial::available(){
 	return inboxAvailable;
 }
 
-void FlowSerial::transmissionError(boolean resend){
-	Serial.write(0xAA);
-	Serial.write(0x06);
-	if(resend == true){
-		Serial.write(0x01);
-		Serial.write(0x00);
-		Serial.write(0xb1);
-	}
-	else{
-		Serial.write(0x00);
-		Serial.write(0x00);
-		Serial.write(0xb0);
-	}
-}
-
-void FlowSerial::sendDebugInfo(String text, int textLength){
-	Serial.write(0xAA);
-	Serial.write(0x04);
-	Serial.write(textLength);
-	int serialSum = 0xAE + textLength;
-	for(int i = 0; i < textLength; i++){
-		Serial.write(text[i]);
-		serialSum += text[i];
-	}
-	Serial.write(char(serialSum));
-	Serial.write(char(serialSum >> 8));
-}
-
 void FlowSerial::write(byte address, byte out[], int quantity){
 	Serial.write(0xAA);
-	Serial.write(0x02);
+	Serial.write(writeInstruction);
 	Serial.write(address);
 	Serial.write(quantity);
-	int serialSum = 0xAC + address + quantity;
+	int serialSum = 0xAA + writeInstruction + address + quantity;
 	for(int i = 0; i < quantity; i++){
 		Serial.write(out[i]);
 		serialSum += out[i];
 	}
-	Serial.write(char(serialSum));
 	Serial.write(char(serialSum >> 8));
+	Serial.write(char(serialSum));
 }
 
 void FlowSerial::write(byte address, byte out){
-	Serial.write(0xAA);
-	Serial.write(0x02);
-	Serial.write(address);
-	Serial.write(0x01);
-	int serialSum = 0xAD + address + out;
-	Serial.write(out);
-	Serial.write(char(serialSum));
-	Serial.write(char(serialSum >> 8));
+	write(address, &out, 1);
 }
