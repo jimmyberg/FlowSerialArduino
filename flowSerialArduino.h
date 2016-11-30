@@ -15,26 +15,23 @@ June to August 2014.
 
 class FlowSerial{
 public:
-	FlowSerial(int baudrate, int regSize, char IDinit);
+	FlowSerial(long baudrate, uint8_t* iflowReg, size_t regSize);
 	char update();
-	char ID;
-	unsigned char serialReg[256];
 	char inboxBuffer[256];
-	boolean debugEnable;
 	char read();
 	int available();
 	void write(byte address, byte out[], int quantity);
 	void write(byte address, byte out);
 private:
-	unsigned char inboxRegisterAt;
-	unsigned char inboxAvailable;
-	unsigned char process;
+	uint8_t* flowReg;
+	size_t sizeOfFlowReg;
+	unsigned char inboxRegisterAt = 0;
+	unsigned char inboxAvailable = 0;
 	unsigned char argumentBuffer[256];
-	unsigned char argumentBufferAt;
+	unsigned char argumentBufferAt = 0;
 	long timeoutTime;
-	int LSBchecksumIn;
-	int MSBchecksumIn;
-	int checksumInbox;
+	uint16_t checksumIn;
+	uint16_t checksumInbox;
 	int instruction;
 	void readCommand();
 	void writeCommand();
@@ -47,7 +44,7 @@ private:
 		LSBchecksumRecieved,
 		MSBchecksumRecieved,
 		executeInstruction
-	};
+	}process = idle;
 
 	//instruction codes
 	enum instruction{

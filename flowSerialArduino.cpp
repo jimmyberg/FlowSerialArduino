@@ -2,23 +2,31 @@
 #include "Arduino.h"
 #include "flowSerialArduino.h"
 
-FlowSerial::FlowSerial(int baudrate, int regSize, char IDinit){
+//#define _DEBUG_FLOWSERIALARDUINO_
+
+FlowSerial::FlowSerial(long baudrate, uint8_t* iflowReg, size_t regSize):
+	flowReg(iflowReg),
+	sizeOfFlowReg(regSize)
+{
 	Serial.begin(baudrate);
-	ID = IDinit;
-	debugEnable = false;
-	Serial.flush();
-	inboxRegisterAt = 0;
-	inboxAvailable = 0;
+	Serial.flush(); 
 }
 
 char FlowSerial::update(){
 	while(Serial.available() != 0){
-		unsigned char byteIn = Serial.read();
+		uint8_t byteIn = Serial.read();
+		#ifdef _DEBUG_FLOWSERIALARDUINO_
+		Serial.print("Received ");
+		Serial.println(byteIn);
+		#endif
 		switch(process){
 			case idle:
 				if(byteIn == 0xAA){
 					checksumInbox = 0xAA;
 					timeoutTime = millis();
+					#ifdef _DEBUG_FLOWSERIALARDUINO_
+					Serial.println("startbyte recieved");
+					#endif
 					process = startRecieved;
 				}
 				break;
@@ -27,17 +35,21 @@ char FlowSerial::update(){
 				checksumInbox += byteIn;
 				argumentBufferAt = 0;
 				process = instructionRecieved;
-				if(debugEnable == true){
-					Serial.println("instruction recieved");
-				}
+				#ifdef _DEBUG_FLOWSERIALARDUINO_
+				Serial.println("instruction recieved");
+				#endif
 				break;
 			case instructionRecieved:
+				checksumInbox += byteIn;
 				switch(instruction){
 					case readRequest:
 						argumentBuffer[argumentBufferAt] = byteIn;
 						argumentBufferAt++;
 						if(argumentBufferAt >= 2){
 							process = argumentsRecieved;
+							#ifdef _DEBUG_FLOWSERIALARDUINO_
+							Serial.println("arguments recieved");
+							#endif
 						}
 						break;
 					case writeInstruction:
@@ -45,6 +57,9 @@ char FlowSerial::update(){
 						argumentBufferAt++;
 						if(argumentBufferAt >= 2 && argumentBufferAt >= argumentBuffer[1] + 2){
 							process = argumentsRecieved;
+							#ifdef _DEBUG_FLOWSERIALARDUINO_
+							Serial.println("arguments recieved");
+							#endif
 						}
 						break;
 					case dataReturn:
@@ -52,50 +67,57 @@ char FlowSerial::update(){
 						argumentBufferAt++;
 						if(argumentBufferAt >= 1 && argumentBufferAt >= argumentBuffer[0] + 2){
 							process = argumentsRecieved;
+							#ifdef _DEBUG_FLOWSERIALARDUINO_
+							Serial.println("arguments recieved");
+							#endif
 						}
 						break;
 				}
 				break;
 			case argumentsRecieved:
-				MSBchecksumIn = byteIn;
-				if(debugEnable == true){
-					Serial.println("LSB recieved");
-				}
+				checksumIn = byteIn << 8;
 				process = MSBchecksumRecieved;
+				#ifdef _DEBUG_FLOWSERIALARDUINO_
+				Serial.print("MSB recieved = ");
+				Serial.println(byteIn);
+				#endif
 				break;
 			case MSBchecksumRecieved:
-				LSBchecksumIn = byteIn;
-				if(debugEnable == true){
-					Serial.println("MSB recieved");
-				}
-				process = LSBchecksumRecieved;
-			case LSBchecksumRecieved:
-				if((MSBchecksumIn << 8) | LSBchecksumIn == checksumInbox){
-					process = executeInstruction;
-					if(debugEnable == true){
-						Serial.println("checksum ok. exucute instruction");
-					}
+				checksumIn = byteIn & 0xFF;
+				#ifdef _DEBUG_FLOWSERIALARDUINO_
+				Serial.print("LSB recieved = ");
+				Serial.println(byteIn);
+				#endif
+				if(checksumIn == checksumInbox){
+					#ifdef _DEBUG_FLOWSERIALARDUINO_
+					Serial.println("checksum ok. exucute instruction");
+					#endif
 				}
 				else{
 					process = idle;
+					#ifdef _DEBUG_FLOWSERIALARDUINO_
+					Serial.print("checksum failed. recieved = ");
+					Serial.println(checksumIn);
+					Serial.print("counted                   = ");
+					Serial.println(checksumInbox);
+					#endif
 					return -1;
 				}
-			case executeInstruction:
-			switch(instruction){
-				case readRequest:
-					readCommand();
-					process = idle;
-					break;
-				case writeInstruction:
-					writeCommand();
-					process = idle;
-					break;
-				default:
-					process = idle;
-			}
-			break;
+				switch(instruction){
+					case readRequest:
+						readCommand();
+						break;
+					case writeInstruction:
+						writeCommand();
+						break;
+					case dataReturn:
+						recieveData();
+						break;
+				}
+				process = idle;
+				break;
 			default:
-			process = idle;
+				process = idle;
 		}
 	}
 	if(millis() - timeoutTime > 150){
@@ -106,25 +128,46 @@ char FlowSerial::update(){
 }
 
 void FlowSerial::readCommand(){
+	#ifdef _DEBUG_FLOWSERIALARDUINO_
+	Serial.println("Executing read command");
+	#endif
 	Serial.write(0xAA);
 	Serial.write(readRequest);
 	Serial.write(argumentBuffer[1]);
 	int checksumOut = 0xAA + readRequest + argumentBuffer[1];
 	for(int i = 0;i < argumentBuffer[1]; i++){
-		Serial.write(serialReg[i + argumentBuffer[0]]);
-		checksumOut += serialReg[i + argumentBuffer[0]];
+		Serial.write(flowReg[i + argumentBuffer[0]]);
+		checksumOut += flowReg[i + argumentBuffer[0]];
 	}
-	Serial.write(char(checksumOut >> 8));
 	Serial.write(char(checksumOut));
+	Serial.write(char(checksumOut >> 8));
 }
 
 void FlowSerial::writeCommand(){
+	#ifdef _DEBUG_FLOWSERIALARDUINO_
+	Serial.println("Executing write command");
+	#endif
+	if(argumentBuffer[1] > sizeOfFlowReg){
+		argumentBuffer[1] = sizeOfFlowReg;
+		#ifdef _DEBUG_FLOWSERIALARDUINO_
+		Serial.println("Tried writing outside of buffer");
+		#endif
+	}
+	#ifdef _DEBUG_FLOWSERIALARDUINO_
+	Serial.print("Writing from ");
+	Serial.print(argumentBuffer[0]);
+	Serial.print(" to ");
+	Serial.println(argumentBuffer[1] + argumentBuffer[0]);
+	#endif
 	for(int i = 0;i < argumentBuffer[1]; i++){
-		serialReg[i + argumentBuffer[0]] = argumentBuffer[i + 2];
+		flowReg[i + argumentBuffer[0]] = argumentBuffer[i + 2];
 	}
 }
 
 void FlowSerial::recieveData(){
+	#ifdef _DEBUG_FLOWSERIALARDUINO_
+	Serial.println("Executing recieveData command");
+	#endif
 	for(int i = 0; i < argumentBuffer[1]; i++){
 		inboxBuffer[i + inboxRegisterAt] = argumentBuffer[i + 2];
 		inboxAvailable++;
@@ -152,8 +195,8 @@ void FlowSerial::write(byte address, byte out[], int quantity){
 		Serial.write(out[i]);
 		serialSum += out[i];
 	}
-	Serial.write(char(serialSum >> 8));
 	Serial.write(char(serialSum));
+	Serial.write(char(serialSum >> 8));
 }
 
 void FlowSerial::write(byte address, byte out){
