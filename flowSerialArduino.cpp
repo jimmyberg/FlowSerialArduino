@@ -132,9 +132,9 @@ void FlowSerial::readCommand(){
 	Serial.println("Executing read command");
 	#endif
 	Serial.write(0xAA);
-	Serial.write(readRequest);
+	Serial.write(dataReturn);
 	Serial.write(argumentBuffer[1]);
-	int checksumOut = 0xAA + readRequest + argumentBuffer[1];
+	int checksumOut = 0xAA + dataReturn + argumentBuffer[1];
 	for(int i = 0;i < argumentBuffer[1]; i++){
 		Serial.write(flowReg[i + argumentBuffer[0]]);
 		checksumOut += flowReg[i + argumentBuffer[0]];
