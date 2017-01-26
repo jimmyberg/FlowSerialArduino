@@ -31,7 +31,7 @@ char FlowSerial::update(){
 				}
 				break;
 			case startRecieved:
-				instruction = byteIn;
+				currentInstruction = static_cast<Instruction>(byteIn);
 				checksumInbox += byteIn;
 				argumentBufferAt = 0;
 				process = instructionRecieved;
@@ -41,7 +41,7 @@ char FlowSerial::update(){
 				break;
 			case instructionRecieved:
 				checksumInbox += byteIn;
-				switch(instruction){
+				switch(currentInstruction){
 					case readRequest:
 						argumentBuffer[argumentBufferAt] = byteIn;
 						argumentBufferAt++;
@@ -103,7 +103,7 @@ char FlowSerial::update(){
 					#endif
 					return -1;
 				}
-				switch(instruction){
+				switch(currentInstruction){
 					case readRequest:
 						readCommand();
 						break;
@@ -181,22 +181,32 @@ char FlowSerial::read(){
 	return charOut;
 }
 
-int FlowSerial::available(){
+uint8_t FlowSerial::available(){
 	return inboxAvailable;
 }
 
-void FlowSerial::write(uint8_t address, uint8_t out[], int quantity){
+void FlowSerial::sendReadRequest(uint8_t address, uint8_t size){
+	Serial.write(0xAA);
+	Serial.write(readRequest);
+	Serial.write(address);
+	Serial.write(size);
+	uint16_t serialSum = 0xAA + readRequest + address + size;
+	Serial.write(static_cast<uint8_t>(serialSum & 0xFF));
+	Serial.write(static_cast<uint8_t>(serialSum >> 8));
+}
+
+void FlowSerial::write(uint8_t address, uint8_t out[], uint8_t quantity){
 	Serial.write(0xAA);
 	Serial.write(writeInstruction);
 	Serial.write(address);
 	Serial.write(quantity);
-	int serialSum = 0xAA + writeInstruction + address + quantity;
+	uint16_t serialSum = 0xAA + writeInstruction + address + quantity;
 	for(int i = 0; i < quantity; i++){
 		Serial.write(out[i]);
 		serialSum += out[i];
 	}
-	Serial.write(char(serialSum));
-	Serial.write(char(serialSum >> 8));
+	Serial.write(static_cast<uint8_t>(serialSum & 0xFF));
+	Serial.write(static_cast<uint8_t>(serialSum >> 8));
 }
 
 void FlowSerial::write(uint8_t address, uint8_t out){
