@@ -185,7 +185,7 @@ int FlowSerial::available(){
 	return inboxAvailable;
 }
 
-void FlowSerial::write(byte address, byte out[], int quantity){
+void FlowSerial::write(uint8_t address, uint8_t out[], int quantity){
 	Serial.write(0xAA);
 	Serial.write(writeInstruction);
 	Serial.write(address);
@@ -199,6 +199,6 @@ void FlowSerial::write(byte address, byte out[], int quantity){
 	Serial.write(char(serialSum >> 8));
 }
 
-void FlowSerial::write(byte address, byte out){
+void FlowSerial::write(uint8_t address, uint8_t out){
 	write(address, &out, 1);
 }

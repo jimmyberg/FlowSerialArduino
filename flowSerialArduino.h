@@ -20,8 +20,8 @@ public:
 	char inboxBuffer[256];
 	char read();
 	int available();
-	void write(byte address, byte out[], int quantity);
-	void write(byte address, byte out);
+	void write(uint8_t address, uint8_t out[], int quantity);
+	void write(uint8_t address, uint8_t out);
 private:
 	uint8_t* flowReg;
 	size_t sizeOfFlowReg;
