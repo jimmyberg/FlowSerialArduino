@@ -17,20 +17,21 @@ class FlowSerial{
 public:
 	FlowSerial(int32_t baudrate, uint8_t* iflowReg, size_t regSize);
 	char update();
-	char inboxBuffer[256];
 	char read();
 	uint8_t available();
 	void sendReadRequest(uint8_t address, uint8_t size);
 	void write(uint8_t address, uint8_t out[], uint8_t quantity);
 	void write(uint8_t address, uint8_t out);
 private:
-	uint8_t* flowReg;
+	uint8_t* const flowReg;
+	char inboxBuffer[64];
+	const size_t sizeOfInbox = sizeof(inboxBuffer) / sizeof(inboxBuffer[0]);
 	size_t sizeOfFlowReg;
 	uint8_t inboxRegisterAt = 0;
 	uint8_t inboxAvailable = 0;
-	uint8_t argumentBuffer[256];
+	uint8_t argumentBuffer[64];
 	uint8_t argumentBufferAt = 0;
-	int32_t timeoutTime;
+	unsigned long timeoutTime;
 	uint16_t checksumIn;
 	uint16_t checksumInbox;
 	void readCommand();
