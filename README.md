@@ -20,7 +20,8 @@ uint8_t array[100];
 FlowSerial flowserial(baudRate, array, 100);
 //                                      ^ size of array
 ```
-And just go ahead and read/write to the other party with `flowSerial.sendReadRequest(address, numberOfBytesYouWantFromThere)` and just for `avialable()` to give a value(number of bytes recieved).
+After that you must call flowSerial.update() periodically. This will handle incomming data from the serial interface.
+To read to the other party you use `flowSerial.sendReadRequest(address, numberOfBytesYouWantFromThere)` to ask for the data and just wait for `avialable()` to give a value(number of bytes recieved).
 After that use `flowSerial.read()` to get the byte asked for one at a time.
 
-For writing you can just use `flowSerial.write(address, data)` or even better an whole array with `flowSerial.write(startAddressToWrite, pointerToArray, numberOfBytes)`
+For writing you can just use `flowSerial.write(address, data)` or even better for arrays of data use `flowSerial.write(startAddressToWrite, pointerToArray, numberOfBytes)`
