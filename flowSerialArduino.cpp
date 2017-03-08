@@ -189,8 +189,8 @@ void FlowSerial::recieveData(){
 	#ifdef _DEBUG_FLOWSERIALARDUINO_
 	Serial.println("Executing recieveData command");
 	#endif
-	if(argumentBuffer[0] + inboxRegisterAt > sizeOfInbox){
-		argumentBuffer[0] = sizeOfInbox - inboxRegisterAt;
+	if(argumentBuffer[0] > sizeOfInbox - inboxAvailable){
+		argumentBuffer[0] = sizeOfInbox - inboxAvailable;
 	}
 	for(int i = 0; i < argumentBuffer[0]; i++){
 		inboxBuffer[inboxRegisterAt] = argumentBuffer[i + 1];
@@ -199,9 +199,9 @@ void FlowSerial::recieveData(){
 	}
 }
 
-char FlowSerial::read(){
+uint8_t FlowSerial::read(){
 	if(inboxAvailable > 0){
-		char charOut = inboxBuffer[(inboxRegisterAt + sizeOfInbox - inboxAvailable) % sizeOfInbox];
+		uint8_t charOut = inboxBuffer[(inboxRegisterAt + sizeOfInbox - inboxAvailable) % sizeOfInbox];
 		inboxAvailable--;
 		return charOut;
 	}

@@ -17,13 +17,13 @@ class FlowSerial{
 public:
 	FlowSerial(int32_t baudrate, uint8_t* iflowReg, size_t regSize);
 	char update();
-	char read();
+	uint8_t read();
 	uint8_t available();
 	void sendReadRequest(uint8_t address, uint8_t size);
 	void write(uint8_t address, uint8_t out[], uint8_t quantity);
 	void write(uint8_t address, uint8_t out);
-private:
 	uint8_t* const flowReg;
+private:
 	char inboxBuffer[64];
 	const size_t sizeOfInbox = sizeof(inboxBuffer) / sizeof(inboxBuffer[0]);
 	size_t sizeOfFlowReg;
