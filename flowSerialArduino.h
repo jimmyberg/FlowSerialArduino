@@ -1,7 +1,7 @@
 /*
-flowSerial.h - Library for register based communication over rs-232 or usb
-Registers at both parties wich can be read or writed from.
-Is able to ferify the data with a checksum
+flowSerial.h - Library for register based communication over rs-232 or USB
+Registers at both parties which can be read or write from.
+Is able to verify the data with a checksum
 
 Copyright 2014
 Created by Jimmy van den Berg.
@@ -12,38 +12,63 @@ June to August 2014.
 #define flowSerial_h
 
 #include "Arduino.h"
+#include "CircularBuffer/CircularBuffer.hpp"
+#include "LinearBuffer/LinearBuffer.h"
 
+/**
+ * @brief      Class for flow serial communication.
+ *
+ * @warning    This class can handle limited sized packet. See
+ *             FlowSerail::inputBuffer and FlowSerail::argumentBuffer.
+ */
 class FlowSerial{
 public:
 	FlowSerial(int32_t baudrate, uint8_t* iflowReg, size_t regSize);
 	char update();
-	uint8_t read();
-	uint8_t available();
+	size_t getReturnedData(uint8_t *data, size_t size){
+		return inboxBuffer.get(data, size);
+	}
+	void clearReturnedData(){
+		inboxBuffer.clearAll();
+	}
+	uint8_t available(){
+		return inboxBuffer.getStored();
+	}
 	void sendReadRequest(uint8_t address, uint8_t size);
 	void write(uint8_t address, uint8_t out[], uint8_t quantity);
 	void write(uint8_t address, uint8_t out);
 	uint8_t* const flowReg;
 private:
-	char inboxBuffer[64];
-	const size_t sizeOfInbox = sizeof(inboxBuffer) / sizeof(inboxBuffer[0]);
-	size_t sizeOfFlowReg;
-	uint8_t inboxRegisterAt = 0;
-	uint8_t inboxAvailable = 0;
-	uint8_t argumentBuffer[64];
-	uint8_t argumentBufferAt = 0;
-	unsigned long timeoutTime;
-	uint16_t checksumIn;
-	uint16_t checksumInbox;
+	/**
+	 * Buffer used for returned data. The second template parameter implies the
+	 * max bytes that can be returned and so deterrence the max read operation
+	 *
+	 * @warning    When receiving packets that are to large to store in this
+	 *             buffer, then it will simply ignore the last bytes.
+	 */
+	CircularBuffer<uint8_t, 64> inboxBuffer;
+	const size_t sizeOfFlowReg;
+	/**
+	 * Buffer used when receiving a packet. Here the argument data will be
+	 * buffered. The second template parameters implies the max size write
+	 * packet it can handle.
+	 * @warning    When receiving packets that are to large to store in this
+	 *             buffer, then it will simply ignore the last bytes.
+	 */
+	LinearBuffer<uint8_t, 64> argumentBuffer;
+	uint16_t timeoutTime;
+	uint16_t checksumIn;    // These two are compared when a transmission packet is received as checksum.
+	uint16_t checksumInbox; // These two are compared when a transmission packet is received as checksum.
 	void readCommand();
 	void writeCommand();
-	void recieveData();
+	void receiveData();
 	enum FsmStates{
 		idle,
-		startRecieved,
-		instructionRecieved,
-		argumentsRecieved,
-		LSBchecksumRecieved,
-		MSBchecksumRecieved,
+		startReceived,
+		instructionReceived,
+		argumentsReceived,
+		LSBchecksumReceived,
+		MSBchecksumReceived,
 		executeInstruction
 	}process = idle;
 
